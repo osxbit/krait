@@ -1,0 +1,18 @@
+.highlight .gp {
+  display: none;   /* hide >>> and ... */
+}
+
+/** Hide documentation strings from source code blocks
+ * See: https://mkdocstrings.github.io/recipes/?h=list#hide-documentation-strings-from-source-code-blocks
+ */
+.doc-contents details .highlight code {
+  line-height: 0;
+}
+
+.doc-contents details .highlight code > * {
+  line-height: initial;
+}
+
+.doc-contents details .highlight code > .sd {  /* Literal.String.Doc */
+  display: none;
+}

@@ -1,55 +1,97 @@
 """
-Module implements a reactive property system inspired by modern web frameworks.
+Reactive Property System for Python.
 
-Module implements a reactive property system inspired by modern web frameworks
-such as SolidJS and ReactJS. It allows for the creation of properties that can react
-to changes in their dependencies, enabling automatic recalculation and caching of
-derived values. This is particularly useful for building dynamic, dependency-aware
-systems in Python.
+This library provides a **reactive property system** inspired by modern web frameworks
+such as ReactJS and SolidJS, but adapted to Python. It allows you to define properties
+that automatically **track their dependencies** and recompute only when necessary.
 
-Features:
+Unlike normal `@property`, which runs on *every access*, a `@signal`:
+
+- Caches the result until something it depends on changes.
+- Automatically invalidates downstream values when an upstream dependency changes.
+- Requires no manual bookkeeping of dependencies.
+
+This makes it ideal for building **dependency-aware systems**, with predictable updates
+and minimal overhead.
+
+Features
+--------
+
+- **Dependency Tracking**: Automatically tracks upstream/downstream relationships.
+- **Caching & Lazy Recalculation**: Values are only recomputed when dependencies change.
+- **Signal Handlers**: Extend signal behavior (e.g., delayed updates, expiration).
+- **Dynamic Signals**: Functions can be turned into signals with optional TTL/expiration.
+- **Passive Design**: No background threads or hidden loops — checks run only when accessed.
+- **Thread & Async Safety**: Safe to use in concurrent Python applications.
+
+Limitations
+-----------
+- Mutable objects (e.g., `list`, `dict`) are not deeply tracked.
+  In-place changes will not trigger signals automatically.
+  As a workaround, reassign the object to itself:
+
+        obj.data = obj.data  # Triggers recomputation
+
+Examples
+--------
+Basic usage with derived signals:
+
+>>> from krait.signal import signal
+>>>
+>>> class Example:
+...     def __init__(self, value):
+...         self._value = value
+...
+...     @signal
+...     def value(self):
+...         return self._value
+...
+...     @signal
+...     def doubled(self):
+...         print("Calculating doubled")
+...         return self.value * 2
+...
+>>> ex = Example(10)
+>>> ex.doubled
+Calculating doubled
+20
+>>> ex.doubled  # Cached, no recomputation
+20
+>>> ex._value = 20
+>>> ex.doubled  # Dependency changed → recomputation
+Calculating doubled
+40
+
+Pipeline-style example:
+
+>>> import time
+>>> class Pricing:
+...     base_price = signal(100)
+...     factor = signal(0.1)
+...
+...     @signal
+...     def discount(self):
+...         time.sleep(0.2)  # simulate work
+...         return self.base_price * self.factor
+...
+...     @signal
+...     def final_price(self):
+...         return self.base_price - self.discount
+...
+>>> p = Pricing()
+>>> p.final_price
+90.0
+>>> p.base_price = 200
+>>> p.final_price  # automatically updated
+180.0
+
+Use Cases
 ---------
-- **Signal Handlers**: Manage the behavior and lifecycle of signal-enabled properties.
-  Handlers ensure that the origin value remains consistent with the property they are managing.
-- **Dynamic Signals**: Support for dynamic, callable properties with caching and
-  expiration capabilities.
-- **Dependency Tracking**: Automatically tracks relationships between properties to
-  propagate changes efficiently, similar to state management in ReactJS.
+- State management for Python classes
+- Computed/derived properties
+- Dependency-aware caching
+- Building reactive APIs without explicit update logic
 
-
-Modules and Classes:
---------------------
-- BaseSignalHandler: A base class for managing signal behaviors, ensuring that handler
-  origin values remain consistent with the property.
-- SignaledProperty: A descriptor that enables reactive properties, tracking dependencies,
-  and handling updates automatically.
-- DynamicSignaledType: A specialized handler for callable properties, supporting caching
-  and controlled expiration of values.
-- signal: A decorator and subclass of `SignaledProperty` for defining reactive properties
-  within classes.
-
-Notes
------
-- Limitations: This module have not yet support for handling mutable objects as signals.
-    In case that a mutable object is used as a signal, the signal will not be triggered when
-    the object is modified. This is a known limitation and will be addressed in future updates.
-
-    As a workaround, you can trigger the signal by setting the signal to itself, like this:
-    ```python
-    class ExampleClass:
-        @signal
-        def signal_instance(self):
-            return [1, 2, 3]
-
-    instance = ExampleClass()
-    instance.signal_instance = instance.signal_instance
-    # This will trigger the signal and update the downstream properties.
-    # or u can do: instance.signal_instance = signal
-    ```
-
-
-This module is suitable for scenarios requiring state management, derived computations,
-or reactive programming principles in Python.
 """
 
 import abc
@@ -193,13 +235,6 @@ class PrimitiveSignalHandler(BaseSignalHandler):
         """
         Retrieve the value managed by this signal handler.
 
-        Parameters
-        ----------
-        instance : Any
-            The instance of the class where the signal is defined.
-        owner : type
-            The owner class where the signal is defined.
-
         Returns
         -------
         Any
@@ -216,8 +251,6 @@ class PrimitiveSignalHandler(BaseSignalHandler):
 
         Parameters
         ----------
-        instance : Any
-            The instance of the class where the signal is defined.
         value : Any
             The new value to set.
         """
@@ -378,12 +411,12 @@ class SignaledProperty:
 
         Parameters
         ----------
-        target : Any
-            The initial value of the property.
-        args : tuple
-            Positional arguments for the signal handler.
-        kwargs : dict
-            Keyword arguments for the signal handler.
+        origin : Any, optional
+            The origin or initial value for the property. Defaults to a sentinel value.
+        shared : bool, optional
+            Indicates whether the property is shared across instances. Defaults to False.
+        **kwargs : dict
+            Additional keyword arguments to be passed to the property configuration.
         """
         self._upstream_signals: weakref.WeakSet["SignaledProperty"] = weakref.WeakSet()
         self._downstream_signals: weakref.WeakSet["SignaledProperty"] = (

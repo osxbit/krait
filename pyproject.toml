@@ -57,7 +57,19 @@ test = [
     "pytest-mock>=3.14",
     "pytest-xdist>=3.6.1",
 ]
-docs = []
+docs = [
+    "mkdocs",
+    "mkdocs-awesome-pages-plugin",
+    "mkdocstrings[python]",
+    "mkdocs-kroki-plugin",
+    "mkdocs-material",
+    "pymdown-extensions",
+    "mkdocs-git-authors-plugin",
+    "mkdocs-click>=0.8.1",
+    "mkdocs-git-revision-date-localized-plugin>=1.3.0",
+    "mkdocs-section-index>=0.3.9",
+    "mkdocs-literate-nav>=0.6.1",
+]
 ci = ["packaging", "tomlkit"]
 
 [tool.hatch]
@@ -82,6 +94,9 @@ lint.extend-ignore = [
 
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"
+
+[tool.uv.sources]
+krait-lib = { workspace = true }
 
 [tool.uv.workspace]
 members = ["packages/*"]
