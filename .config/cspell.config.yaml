@@ -8,14 +8,29 @@ dictionaries:
 words:
   - covdefaults
   - Craciun
+  - fdel
   - FILECOVERAGE
+  - Fira
+  - fontawesome
   - FURB
+  - inlinehilite
   - junitxml
+  - kroki
+  - linenums
+  - magiclink
+  - mkdocstrings
+  - osxbit
   - Panaintescu
   - posargs
+  - pymdownx
   - pypa
+  - striphtml
+  - stripnl
+  - superfences
+  - tasklist
   - techdocs
   - toxworkdir
+  - twemoji
   - XDIST
 ignoreWords: []
 import: []
